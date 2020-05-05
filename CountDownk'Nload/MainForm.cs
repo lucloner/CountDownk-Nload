@@ -543,15 +543,19 @@ namespace CountDownk_Nload
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message + ex.StackTrace);
-                    pbMain.Value = pbMain.Maximum;
                 }
                 Parallel.For(0, clistDirs.Items.Count, i => save.Append(clistDirs.Items[i] + "\r\n"));
+                File.AppendAllText(saveFileFullName.FullName, save.ToString());
+                save.Clear();
                 save.Append("\r\n文件列表:\r\n");
                 Parallel.For(0, listBrowse.Items.Count, i => save.Append(clistDirs.Items[i] + "\r\n"));
+                File.AppendAllText(saveFileFullName.FullName, save.ToString());
+                save.Clear();
                 save.Append("\r\n缺失列表:\r\n");
                 Parallel.For(0, listLost.Items.Count, i => save.Append(clistDirs.Items[i] + "\r\n"));
                 save.Append($"\r\n{DateTime.Now}完成\r\n");
                 File.AppendAllText(saveFileFullName.FullName, save.ToString());
+                save.Clear();
             }));
             btnSave.Enabled = true;
         }
