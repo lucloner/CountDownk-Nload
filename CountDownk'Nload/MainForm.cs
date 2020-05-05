@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -35,7 +36,7 @@ namespace CountDownk_Nload
             var sortedDirs = from o in Dirs orderby o.Key select o;
             Parallel.ForEach(Dirs.Keys, d =>
             {
-                waitQueue.Add(pool.QueueWorkItem(()=>Console.WriteLine("++" + Invoke(new invAddDir(clistDirs.Items.Add), new object[] { GetShorten(d), false }))));
+                waitQueue.Add(pool.QueueWorkItem(() => Console.WriteLine("++" + Invoke(new invAddDir(clistDirs.Items.Add), new object[] { GetShorten(d), false }))));
             });
         }
 
@@ -302,13 +303,13 @@ namespace CountDownk_Nload
                         if (works != null && works.Length > 0)
                         {
                             SmartThreadPool.WaitAll(works);
+                            waitQueue.RemoveAll(q => works.Contains(q));
                         }
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine(ex.Message + ex.StackTrace);
                     }
-                    waitQueue.RemoveAll(q => works.Contains(q));
                     Invoke(new invProcess(AddProcess), new object[] { 100 });
                 }));
                 single.QueueWorkItem(() => Invoke(new invClear(ChangeStatus)));
@@ -354,7 +355,7 @@ namespace CountDownk_Nload
                     var lostParam = item.Split(lostToSeparator);
                     var lostEnd = lostParam[1];
                     var lostStart = lostParam[0];
-                    lostStart = lostStart.Substring(lostStart.IndexOf(lostSeparator)+lostSeparator.Length);
+                    lostStart = lostStart.Substring(lostStart.IndexOf(lostSeparator) + lostSeparator.Length);
                     cnt += int.Parse(lostEnd) - int.Parse(lostStart);
                 }
             });
@@ -531,7 +532,7 @@ namespace CountDownk_Nload
         private void BtnSave_Click(object sender, EventArgs e)
         {
             btnSave.Enabled = false;
-            var save = new StringBuilder($"当前文件夹:{appPath}\r\n目录列表:");
+            var save = new StringBuilder($"\r\n==当前文件夹/前缀缩写:{shorten}\r\n目录列表:\r\n");
             var wait = waitQueue.ToArray();
             waitQueue.Add(single.QueueWorkItem(() =>
             {
@@ -544,17 +545,36 @@ namespace CountDownk_Nload
                 {
                     Console.WriteLine(ex.Message + ex.StackTrace);
                 }
-                Parallel.For(0, clistDirs.Items.Count, i => save.Append(clistDirs.Items[i] + "\r\n"));
-                File.AppendAllText(saveFileFullName.FullName, save.ToString());
-                save.Clear();
+                var p=Parallel.For(0, clistDirs.Items.Count, i => save.Append(clistDirs.Items[i] + "\r\n"));
+                while (!p.IsCompleted)
+                {
+                    Thread.Sleep(1000);
+                }
                 save.Append("\r\n文件列表:\r\n");
-                Parallel.For(0, listBrowse.Items.Count, i => save.Append(clistDirs.Items[i] + "\r\n"));
-                File.AppendAllText(saveFileFullName.FullName, save.ToString());
-                save.Clear();
+                p = Parallel.For(0, listBrowse.Items.Count, i => save.Append(listBrowse.Items[i] + "\r\n"));
+                while (!p.IsCompleted)
+                {
+                    Thread.Sleep(1000);
+                }
                 save.Append("\r\n缺失列表:\r\n");
-                Parallel.For(0, listLost.Items.Count, i => save.Append(clistDirs.Items[i] + "\r\n"));
-                save.Append($"\r\n{DateTime.Now}完成\r\n");
-                File.AppendAllText(saveFileFullName.FullName, save.ToString());
+                p = Parallel.For(0, listLost.Items.Count, i => save.Append(listLost.Items[i] + "\r\n"));
+                while (!p.IsCompleted)
+                {
+                    Thread.Sleep(1000);
+                }
+                save.Append("\r\n报告:\r\n");
+                save.Append(lblStatus.Text);
+
+                var writer = saveFileFullName.AppendText();
+                var reader = new StringReader(save.ToString() + $"\r\n{DateTime.Now}完成==\r\n");
+                int len = 4096;
+                char[] strToWrite = new char[len];
+                while (0 < (len = reader.Read(strToWrite, 0, 4096)))
+                {
+                    writer.Write(strToWrite,0,len);
+                }
+                writer.Close();
+                reader.Close();
                 save.Clear();
             }));
             btnSave.Enabled = true;
