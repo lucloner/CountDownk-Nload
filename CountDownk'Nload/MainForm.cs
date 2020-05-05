@@ -35,7 +35,7 @@ namespace CountDownk_Nload
             var sortedDirs = from o in Dirs orderby o.Key select o;
             Parallel.ForEach(Dirs.Keys, d =>
             {
-                Console.WriteLine("++" + Invoke(new invAddDir(clistDirs.Items.Add), new object[] { GetShorten(d), false }));
+                waitQueue.Add(pool.QueueWorkItem(()=>Console.WriteLine("++" + Invoke(new invAddDir(clistDirs.Items.Add), new object[] { GetShorten(d), false }))));
             });
         }
 
@@ -354,7 +354,7 @@ namespace CountDownk_Nload
                     var lostParam = item.Split(lostToSeparator);
                     var lostEnd = lostParam[1];
                     var lostStart = lostParam[0];
-                    lostStart = lostStart.Substring(lostStart.Length - lostEnd.Length);
+                    lostStart = lostStart.Substring(lostStart.IndexOf(lostSeparator)+lostSeparator.Length);
                     cnt += int.Parse(lostEnd) - int.Parse(lostStart);
                 }
             });
